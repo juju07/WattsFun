@@ -1,0 +1,32 @@
+# Build directory
+build/
+
+# Qt generated files
+*_autogen/
+moc_*.cpp
+ui_*.h
+qrc_*.cpp
+
+# Compiled object files
+*.o
+*.obj
+
+# Executables
+*.exe
+*.out
+*.app
+
+# IDE files
+.vs/
+*.user
+*.suo
+*.sln.docstates
+CMakeSettings.json
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# TCX data files
+*.tcx

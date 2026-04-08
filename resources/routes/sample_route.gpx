@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="WattsFun"
+     xmlns="http://www.topografix.com/GPX/1/1"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+  <trk>
+    <name>Sample Training Route – Valley Loop</name>
+    <trkseg>
+      <!-- Village start, flat approach -->
+      <trkpt lat="47.9800" lon="7.8400"><ele>250</ele></trkpt>
+      <trkpt lat="47.9785" lon="7.8435"><ele>255</ele></trkpt>
+      <trkpt lat="47.9770" lon="7.8472"><ele>262</ele></trkpt>
+      <!-- Gentle climb begins -->
+      <trkpt lat="47.9752" lon="7.8510"><ele>278</ele></trkpt>
+      <trkpt lat="47.9730" lon="7.8548"><ele>304</ele></trkpt>
+      <!-- Steeper climb -->
+      <trkpt lat="47.9706" lon="7.8582"><ele>336</ele></trkpt>
+      <trkpt lat="47.9680" lon="7.8614"><ele>372</ele></trkpt>
+      <trkpt lat="47.9655" lon="7.8642"><ele>406</ele></trkpt>
+      <!-- Summit zone -->
+      <trkpt lat="47.9636" lon="7.8665"><ele>428</ele></trkpt>
+      <trkpt lat="47.9622" lon="7.8682"><ele>444</ele></trkpt>
+      <trkpt lat="47.9613" lon="7.8698"><ele>453</ele></trkpt>
+      <trkpt lat="47.9608" lon="7.8712"><ele>456</ele></trkpt>
+      <!-- Plateau and start of descent -->
+      <trkpt lat="47.9610" lon="7.8730"><ele>452</ele></trkpt>
+      <trkpt lat="47.9618" lon="7.8752"><ele>441</ele></trkpt>
+      <!-- Descent -->
+      <trkpt lat="47.9632" lon="7.8774"><ele>422</ele></trkpt>
+      <trkpt lat="47.9650" lon="7.8796"><ele>399</ele></trkpt>
+      <trkpt lat="47.9672" lon="7.8816"><ele>373</ele></trkpt>
+      <trkpt lat="47.9695" lon="7.8833"><ele>344</ele></trkpt>
+      <trkpt lat="47.9720" lon="7.8845"><ele>314</ele></trkpt>
+      <trkpt lat="47.9746" lon="7.8851"><ele>286</ele></trkpt>
+      <!-- Flatter section returning to valley -->
+      <trkpt lat="47.9770" lon="7.8846"><ele>268</ele></trkpt>
+      <trkpt lat="47.9790" lon="7.8830"><ele>260</ele></trkpt>
+      <trkpt lat="47.9800" lon="7.8804"><ele>257</ele></trkpt>
+      <!-- Flat return leg -->
+      <trkpt lat="47.9800" lon="7.8762"><ele>255</ele></trkpt>
+      <trkpt lat="47.9800" lon="7.8718"><ele>254</ele></trkpt>
+      <trkpt lat="47.9800" lon="7.8674"><ele>253</ele></trkpt>
+      <trkpt lat="47.9800" lon="7.8630"><ele>252</ele></trkpt>
+      <trkpt lat="47.9800" lon="7.8568"><ele>251</ele></trkpt>
+      <trkpt lat="47.9800" lon="7.8504"><ele>251</ele></trkpt>
+      <trkpt lat="47.9800" lon="7.8452"><ele>250</ele></trkpt>
+      <!-- Back at start -->
+      <trkpt lat="47.9800" lon="7.8400"><ele>250</ele></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

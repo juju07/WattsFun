@@ -1,0 +1,5 @@
+WattsFun - Indoor Cycling Trainer
+
+Copyright (c) 2026 Julien Beaudry. All rights reserved.
+
+This software is provided "as is", without warranty of any kind.

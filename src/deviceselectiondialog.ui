@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>DeviceSelectionDialog</class>
+ <widget class="QDialog" name="DeviceSelectionDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>640</width>
+    <height>500</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Select Devices</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <property name="spacing"><number>10</number></property>
+
+   <!-- Status row -->
+   <item>
+    <layout class="QHBoxLayout">
+     <item>
+      <widget class="QLabel" name="lblStatus">
+       <property name="text"><string>Press Scan to discover devices.</string></property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btnScan">
+       <property name="text"><string>Scan</string></property>
+       <property name="minimumWidth"><number>90</number></property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+
+   <!-- Progress bar -->
+   <item>
+    <widget class="QProgressBar" name="progressBar">
+     <property name="minimum"><number>0</number></property>
+     <property name="maximum"><number>1</number></property>
+     <property name="value"><number>0</number></property>
+     <property name="textVisible"><bool>false</bool></property>
+     <property name="maximumHeight"><number>6</number></property>
+    </widget>
+   </item>
+
+   <!-- Splitter: Trainers (left) | HRM (right) -->
+   <item>
+    <widget class="QSplitter" name="splitter">
+     <property name="orientation"><enum>Qt::Horizontal</enum></property>
+
+     <!-- Trainer group -->
+     <widget class="QGroupBox" name="grpTrainer">
+      <property name="title"><string>Bike Trainer</string></property>
+      <layout class="QVBoxLayout">
+       <item>
+        <widget class="QLabel">
+         <property name="text"><string>Select modules: resistance · cadence · power</string></property>
+         <property name="wordWrap"><bool>true</bool></property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QListWidget" name="listTrainers">
+         <property name="alternatingRowColors"><bool>true</bool></property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+
+     <!-- HRM group -->
+     <widget class="QGroupBox" name="grpHrm">
+      <property name="title"><string>Heart Rate Monitor</string></property>
+      <layout class="QVBoxLayout">
+       <item>
+        <widget class="QLabel">
+         <property name="text"><string>Select your HRM (optional)</string></property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QListWidget" name="listHrm">
+         <property name="alternatingRowColors"><bool>true</bool></property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+
+   <!-- Save checkbox -->
+   <item>
+    <widget class="QCheckBox" name="chkSave">
+     <property name="text"><string>Save selection for faster connection next time</string></property>
+     <property name="checked"><bool>true</bool></property>
+    </widget>
+   </item>
+
+   <!-- OK / Cancel -->
+   <item>
+    <widget class="QDialogButtonBox" name="btnBox">
+     <property name="orientation"><enum>Qt::Horizontal</enum></property>
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Ok|QDialogButtonBox::Cancel</set>
+     </property>
+    </widget>
+   </item>
+
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
