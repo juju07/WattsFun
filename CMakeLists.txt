@@ -8,7 +8,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
 # ── Qt ──────────────────────────────────────────────────────────────────────
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets Charts Network)
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets Network)
 find_package(Qt6 OPTIONAL_COMPONENTS NetworkAuth)
 if(Qt6NetworkAuth_FOUND)
     message(STATUS "Qt6NetworkAuth found – Strava upload enabled")
@@ -96,7 +96,6 @@ target_include_directories(WattsFun PRIVATE src)
 target_link_libraries(WattsFun PRIVATE
     Qt6::Core
     Qt6::Widgets
-    Qt6::Charts
     Qt6::Network
 )
 

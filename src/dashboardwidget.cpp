@@ -9,9 +9,8 @@
 #include <QFrame>
 #include <QFont>
 #include <QDebug>
-#include <QtCharts/QChart>
-#include <QtCharts/QCategoryAxis>
 #include <QPainter>
+#include <QPainterPath>
 #include <QStyleOption>
 #include <QXmlStreamReader>
 #include <QFile>
@@ -327,6 +326,252 @@ void MetricTile::setValue(const QString &v)
 void MetricTile::setNoData()
 {
     m_valueLabel->setText("–");
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// LiveChartWidget – QPainter-based dual-axis line chart
+// ──────────────────────────────────────────────────────────────────────────────
+
+LiveChartWidget::LiveChartWidget(QWidget *parent) : QWidget(parent)
+{
+    setMinimumHeight(220);
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    setStyleSheet("border: 1px solid #313244; border-radius: 8px;");
+}
+
+void LiveChartWidget::appendPower(double x, double y) { m_powerData.append({x, y}); update(); }
+void LiveChartWidget::appendHr(double x, double y)    { m_hrData.append({x, y}); update(); }
+
+void LiveChartWidget::clearSeries()
+{
+    m_powerData.clear();
+    m_hrData.clear();
+    update();
+}
+
+void LiveChartWidget::removePowerBefore(double x)
+{
+    while (!m_powerData.isEmpty() && m_powerData.first().x() < x)
+        m_powerData.removeFirst();
+}
+
+void LiveChartWidget::removeHrBefore(double x)
+{
+    while (!m_hrData.isEmpty() && m_hrData.first().x() < x)
+        m_hrData.removeFirst();
+}
+
+void LiveChartWidget::setXRange(double mn, double mx)      { m_xMin = mn; m_xMax = mx; update(); }
+void LiveChartWidget::setYLeftRange(double mn, double mx)   { m_yLeftMin = mn; m_yLeftMax = mx; update(); }
+void LiveChartWidget::setYRightRange(double mn, double mx)  { m_yRightMin = mn; m_yRightMax = mx; update(); }
+
+QRectF LiveChartWidget::plotArea() const
+{
+    const double l = 68, r = 82, t = 40, b = 45;
+    return QRectF(l, t, width() - l - r, height() - t - b);
+}
+
+double LiveChartWidget::niceStep(double range, int targetTicks)
+{
+    if (range <= 0) return 1;
+    double rough = range / targetTicks;
+    double mag   = std::pow(10.0, std::floor(std::log10(rough)));
+    double norm  = rough / mag;
+    double nice;
+    if      (norm < 1.5) nice = 1;
+    else if (norm < 3.0) nice = 2;
+    else if (norm < 7.0) nice = 5;
+    else                 nice = 10;
+    return nice * mag;
+}
+
+static QString formatTimeTick(double seconds)
+{
+    int totalSec = static_cast<int>(seconds + 0.5);
+    if (totalSec < 0) totalSec = 0;
+    if (seconds < 120.0) {
+        return QString("%1 s").arg(totalSec);
+    } else if (seconds < 3600.0) {
+        int m = totalSec / 60;
+        int s = totalSec % 60;
+        return QString("%1:%2").arg(m).arg(s, 2, 10, QChar('0'));
+    } else {
+        int h = totalSec / 3600;
+        int m = (totalSec % 3600) / 60;
+        int s = totalSec % 60;
+        return QString("%1:%2:%3").arg(h).arg(m, 2, 10, QChar('0')).arg(s, 2, 10, QChar('0'));
+    }
+}
+
+void LiveChartWidget::paintEvent(QPaintEvent *)
+{
+    QPainter p(this);
+    p.setRenderHint(QPainter::Antialiasing);
+
+    // Full background
+    p.fillRect(rect(), QColor("#11111b"));
+
+    QRectF plot = plotArea();
+    if (plot.width() < 10 || plot.height() < 10) return;
+
+    // Plot area background
+    p.fillRect(plot, QColor("#181825"));
+
+    const QColor gridCol("#313244");
+    const QColor labelCol("#a6adc8");
+    const QColor titleCol("#cdd6f4");
+    const QColor powerCol("#89b4fa");
+    const QColor hrCol("#f38ba8");
+
+    QFont labelFont = font();
+    labelFont.setPixelSize(10);
+    QFont titleFont = font();
+    titleFont.setPixelSize(11);
+    titleFont.setBold(true);
+    QFont mainFont = font();
+    mainFont.setPixelSize(14);
+    mainFont.setBold(true);
+
+    // ── Y-axis left (Power) ──────────────────────────────────────────────
+    {
+        double range = m_yLeftMax - m_yLeftMin;
+        double step  = niceStep(range, 5);
+        double first = std::ceil(m_yLeftMin / step) * step;
+        p.setFont(labelFont);
+        for (double v = first; v <= m_yLeftMax + 0.5 * step; v += step) {
+            if (v > m_yLeftMax) break;
+            double py = plot.bottom() - (v - m_yLeftMin) / range * plot.height();
+            p.setPen(QPen(gridCol, 1));
+            p.drawLine(QPointF(plot.left(), py), QPointF(plot.right(), py));
+            p.setPen(powerCol);
+            p.drawText(QRectF(0, py - 8, plot.left() - 4, 16),
+                       Qt::AlignRight | Qt::AlignVCenter,
+                       QString::number(static_cast<int>(v)));
+        }
+        p.save();
+        p.setFont(titleFont);
+        p.setPen(powerCol);
+        p.translate(14, plot.center().y());
+        p.rotate(-90);
+        p.drawText(QRectF(-50, -8, 100, 16), Qt::AlignCenter, "Power (W)");
+        p.restore();
+    }
+
+    // ── Y-axis right (Heart Rate) ───────────────────────────────────────
+    {
+        double range = m_yRightMax - m_yRightMin;
+        double step  = niceStep(range, 5);
+        double first = std::ceil(m_yRightMin / step) * step;
+        p.setFont(labelFont);
+        for (double v = first; v <= m_yRightMax + 0.5 * step; v += step) {
+            if (v > m_yRightMax) break;
+            double py = plot.bottom() - (v - m_yRightMin) / range * plot.height();
+            p.setPen(hrCol);
+            p.drawText(QRectF(plot.right() + 4, py - 8, 60, 16),
+                       Qt::AlignLeft | Qt::AlignVCenter,
+                       QString::number(static_cast<int>(v)));
+        }
+        p.save();
+        p.setFont(titleFont);
+        p.setPen(hrCol);
+        p.translate(width() - 14, plot.center().y());
+        p.rotate(90);
+        p.drawText(QRectF(-80, -8, 160, 16), Qt::AlignCenter, "Heart Rate (bpm)");
+        p.restore();
+    }
+
+    // ── X-axis (Time) ────────────────────────────────────────────────────
+    {
+        double span = m_xMax - m_xMin;
+        if (span <= 0) span = 1;
+        double interval;
+        if      (span <= 60)   interval = 10;
+        else if (span <= 180)  interval = 30;
+        else if (span <= 600)  interval = 60;
+        else if (span <= 1800) interval = 300;
+        else                   interval = 600;
+
+        double first = std::ceil(m_xMin / interval) * interval;
+        p.setFont(labelFont);
+        for (double t = first; t <= m_xMax; t += interval) {
+            double px = plot.left() + (t - m_xMin) / span * plot.width();
+            p.setPen(QPen(gridCol, 1));
+            p.drawLine(QPointF(px, plot.top()), QPointF(px, plot.bottom()));
+            p.setPen(labelCol);
+            p.drawText(QRectF(px - 30, plot.bottom() + 2, 60, 16),
+                       Qt::AlignHCenter | Qt::AlignTop, formatTimeTick(t));
+        }
+        p.setFont(titleFont);
+        p.setPen(titleCol);
+        p.drawText(QRectF(plot.left(), plot.bottom() + 22, plot.width(), 16),
+                   Qt::AlignCenter, "Time");
+    }
+
+    // ── Plot border ──────────────────────────────────────────────────────
+    p.setPen(QPen(gridCol, 1));
+    p.setBrush(Qt::NoBrush);
+    p.drawRect(plot);
+
+    // ── Series (clipped to plot area) ────────────────────────────────────
+    p.save();
+    p.setClipRect(plot);
+
+    double xSpan = m_xMax - m_xMin;
+    if (xSpan <= 0) xSpan = 1;
+
+    auto mapPt = [&](const QPointF &pt, double yMin, double yMax) -> QPointF {
+        double px = plot.left() + (pt.x() - m_xMin) / xSpan * plot.width();
+        double yRange = yMax - yMin;
+        if (yRange <= 0) yRange = 1;
+        double py = plot.bottom() - (pt.y() - yMin) / yRange * plot.height();
+        return {px, py};
+    };
+
+    // Power line
+    if (m_powerData.size() >= 2) {
+        QPainterPath path;
+        path.moveTo(mapPt(m_powerData[0], m_yLeftMin, m_yLeftMax));
+        for (int i = 1; i < m_powerData.size(); ++i)
+            path.lineTo(mapPt(m_powerData[i], m_yLeftMin, m_yLeftMax));
+        p.setPen(QPen(powerCol, 2));
+        p.setBrush(Qt::NoBrush);
+        p.drawPath(path);
+    }
+
+    // Heart-rate line
+    if (m_hrData.size() >= 2) {
+        QPainterPath path;
+        path.moveTo(mapPt(m_hrData[0], m_yRightMin, m_yRightMax));
+        for (int i = 1; i < m_hrData.size(); ++i)
+            path.lineTo(mapPt(m_hrData[i], m_yRightMin, m_yRightMax));
+        p.setPen(QPen(hrCol, 2));
+        p.setBrush(Qt::NoBrush);
+        p.drawPath(path);
+    }
+
+    p.restore();
+
+    // ── Title ────────────────────────────────────────────────────────────
+    p.setFont(mainFont);
+    p.setPen(titleCol);
+    p.drawText(QRectF(plot.left(), 4, plot.width(), 28),
+               Qt::AlignCenter, "Live Performance");
+
+    // ── Legend ────────────────────────────────────────────────────────────
+    {
+        p.setFont(labelFont);
+        int lx = static_cast<int>(plot.right()) - 200;
+        int ly = 8;
+        p.setPen(QPen(powerCol, 2));
+        p.drawLine(lx, ly + 6, lx + 20, ly + 6);
+        p.setPen(titleCol);
+        p.drawText(lx + 24, ly + 11, "Power (W)");
+        lx += 100;
+        p.setPen(QPen(hrCol, 2));
+        p.drawLine(lx, ly + 6, lx + 20, ly + 6);
+        p.setPen(titleCol);
+        p.drawText(lx + 24, ly + 11, "Heart Rate (bpm)");
+    }
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -2913,69 +3158,10 @@ QWidget *DashboardWidget::dialRow()
 
 void DashboardWidget::buildChart()
 {
-    auto *chart = new QChart();
-    chart->setBackgroundBrush(QBrush(QColor("#11111b")));
-    chart->setPlotAreaBackgroundBrush(QBrush(QColor("#181825")));
-    chart->setPlotAreaBackgroundVisible(true);
-    chart->setTitleBrush(QBrush(QColor("#cdd6f4")));
-    chart->setTitle("Live Performance");
-    chart->legend()->setLabelColor(QColor("#cdd6f4"));
-    chart->legend()->setColor(QColor("#11111b"));
-
-    m_serPower = new QLineSeries();
-    m_serPower->setName("Power (W)");
-    m_serPower->setColor(QColor("#89b4fa"));
-    QPen pw; pw.setColor(QColor("#89b4fa")); pw.setWidth(2);
-    m_serPower->setPen(pw);
-
-    m_serHr = new QLineSeries();
-    m_serHr->setName("Heart Rate (bpm)");
-    m_serHr->setColor(QColor("#f38ba8"));
-    QPen hp; hp.setColor(QColor("#f38ba8")); hp.setWidth(2);
-    m_serHr->setPen(hp);
-
-    chart->addSeries(m_serPower);
-    chart->addSeries(m_serHr);
-
-    // X axis – time
-    m_axisX = new QCategoryAxis();
-    m_axisX->setRange(0, CHART_WINDOW_S);
-    m_axisX->setTitleText("Time");
-    m_axisX->setLabelsColor(QColor("#a6adc8"));
-    m_axisX->setTitleBrush(QBrush(QColor("#cdd6f4")));
-    m_axisX->setGridLineColor(QColor("#313244"));
-    m_axisX->setLabelsPosition(QCategoryAxis::AxisLabelsPositionOnValue);
-    updateTimeAxisLabels(0, CHART_WINDOW_S);
-    chart->addAxis(m_axisX, Qt::AlignBottom);
-
-    // Left Y – power
-    m_axisYLeft = new QValueAxis();
-    m_axisYLeft->setRange(0, CHART_DEFAULT_MAX_POWER);
-    m_axisYLeft->setTitleText("Power (W)");
-    m_axisYLeft->setLabelsColor(QColor("#89b4fa"));
-    m_axisYLeft->setTitleBrush(QBrush(QColor("#89b4fa")));
-    m_axisYLeft->setGridLineColor(QColor("#313244"));
-    chart->addAxis(m_axisYLeft, Qt::AlignLeft);
-
-    // Right Y – HR
-    m_axisYRight = new QValueAxis();
-    m_axisYRight->setRange(40, CHART_DEFAULT_MAX_HR);
-    m_axisYRight->setTitleText("Heart Rate (bpm)");
-    m_axisYRight->setLabelsColor(QColor("#f38ba8"));
-    m_axisYRight->setTitleBrush(QBrush(QColor("#f38ba8")));
-    m_axisYRight->setGridLineVisible(false);
-    chart->addAxis(m_axisYRight, Qt::AlignRight);
-
-    m_serPower->attachAxis(m_axisX);
-    m_serPower->attachAxis(m_axisYLeft);
-    m_serHr->attachAxis(m_axisX);
-    m_serHr->attachAxis(m_axisYRight);
-
-    m_chartView = new QChartView(chart, this);
-    m_chartView->setRenderHint(QPainter::Antialiasing);
-    m_chartView->setMinimumHeight(220);
-    m_chartView->setBackgroundBrush(QBrush(QColor("#11111b")));
-    m_chartView->setStyleSheet("border: 1px solid #313244; border-radius: 8px;");
+    m_chartView = new LiveChartWidget(this);
+    m_chartView->setXRange(0, CHART_WINDOW_S);
+    m_chartView->setYLeftRange(0, CHART_DEFAULT_MAX_POWER);
+    m_chartView->setYRightRange(40, CHART_DEFAULT_MAX_HR);
 
     // Zone overlay badge anchored to top-right of the chart
     m_zoneOverlayLabel = new QLabel(m_chartView);
@@ -3116,10 +3302,8 @@ void DashboardWidget::reset()
 {
     m_elapsed  = 0.0;
     m_lastPower = m_lastHr = 0.0;
-    m_serPower->clear();
-    m_serHr->clear();
-    m_axisX->setRange(0, CHART_WINDOW_S);
-    updateTimeAxisLabels(0, CHART_WINDOW_S);
+    m_chartView->clearSeries();
+    m_chartView->setXRange(0, CHART_WINDOW_S);
     m_tilePower->setNoData();
     m_tileCadence->setNoData();
     m_tileSpeed->setNoData();
@@ -3295,86 +3479,36 @@ void DashboardWidget::updatePowerBests()
     if (v1200 > m_bestPower20min) m_bestPower20min= v1200;
 }
 
-// ── Time axis label helper ────────────────────────────────────────────────────
-static QString formatTimeTick(double seconds)
-{
-    int totalSec = static_cast<int>(seconds + 0.5);
-    if (totalSec < 0) totalSec = 0;
-    if (seconds < 120.0) {
-        // Pure seconds
-        return QString("%1 s").arg(totalSec);
-    } else if (seconds < 3600.0) {
-        // mm:ss
-        int m = totalSec / 60;
-        int s = totalSec % 60;
-        return QString("%1:%2").arg(m).arg(s, 2, 10, QChar('0'));
-    } else {
-        // hh:mm:ss
-        int h = totalSec / 3600;
-        int m = (totalSec % 3600) / 60;
-        int s = totalSec % 60;
-        return QString("%1:%2:%3").arg(h).arg(m, 2, 10, QChar('0')).arg(s, 2, 10, QChar('0'));
-    }
-}
-
-void DashboardWidget::updateTimeAxisLabels(double minS, double maxS)
-{
-    // Remove existing categories
-    for (const auto &cat : m_axisX->categoriesLabels())
-        m_axisX->remove(cat);
-
-    // Choose a nice tick interval
-    double span = maxS - minS;
-    double interval;
-    if      (span <= 60)   interval = 10;
-    else if (span <= 180)  interval = 30;
-    else if (span <= 600)  interval = 60;
-    else if (span <= 1800) interval = 300;
-    else                   interval = 600;
-
-    // Place ticks at round multiples within the visible range
-    double first = std::ceil(minS / interval) * interval;
-    for (double t = first; t <= maxS; t += interval)
-        m_axisX->append(formatTimeTick(t), t);
-}
-
 void DashboardWidget::addChartPoint(double powerW, double hrBpm)
 {
-    m_serPower->append(m_elapsed, powerW);
-    m_serHr->append(m_elapsed, hrBpm);
+    m_chartView->appendPower(m_elapsed, powerW);
+    m_chartView->appendHr(m_elapsed, hrBpm);
 
     // Scroll the window
     if (m_elapsed > CHART_WINDOW_S) {
         double lo = m_elapsed - CHART_WINDOW_S;
         double hi = m_elapsed;
-        m_axisX->setRange(lo, hi);
-        updateTimeAxisLabels(lo, hi);
+        m_chartView->setXRange(lo, hi);
 
         // Prune old points (keep only last CHART_WINDOW_S+10 seconds)
-        while (m_serPower->count() > 0 &&
-               m_serPower->at(0).x() < m_elapsed - CHART_WINDOW_S - 10)
-            m_serPower->remove(0);
-        while (m_serHr->count() > 0 &&
-               m_serHr->at(0).x() < m_elapsed - CHART_WINDOW_S - 10)
-            m_serHr->remove(0);
-    } else {
-        updateTimeAxisLabels(0, CHART_WINDOW_S);
+        m_chartView->removePowerBefore(m_elapsed - CHART_WINDOW_S - 10);
+        m_chartView->removeHrBefore(m_elapsed - CHART_WINDOW_S - 10);
     }
 
     // Autoscale power: scan visible window, shrink back to default when values drop
     {
         double maxP = 0.0;
-        for (int i = 0; i < m_serPower->count(); ++i)
-            maxP = std::max(maxP, m_serPower->at(i).y());
-        m_axisYLeft->setRange(0, std::max(CHART_DEFAULT_MAX_POWER, maxP * 1.1));
+        for (int i = 0; i < m_chartView->powerCount(); ++i)
+            maxP = std::max(maxP, m_chartView->powerAt(i).y());
+        m_chartView->setYLeftRange(0, std::max(CHART_DEFAULT_MAX_POWER, maxP * 1.1));
     }
 
     // Autoscale HR: same principle
     {
         double maxHr = 0.0;
-        for (int i = 0; i < m_serHr->count(); ++i)
-            maxHr = std::max(maxHr, m_serHr->at(i).y());
-        m_axisYRight->setRange(40, std::max(CHART_DEFAULT_MAX_HR, maxHr * 1.05));
+        for (int i = 0; i < m_chartView->hrCount(); ++i)
+            maxHr = std::max(maxHr, m_chartView->hrAt(i).y());
+        m_chartView->setYRightRange(40, std::max(CHART_DEFAULT_MAX_HR, maxHr * 1.05));
     }
 }
 

@@ -28,6 +28,7 @@
 #include <QStandardPaths>
 #include <QDir>
 #include <QDialog>
+#include <QScrollArea>
 #include <QFormLayout>
 #include <QLineEdit>
 #include <QDialogButtonBox>
@@ -328,16 +329,30 @@ MainWindow::MainWindow(QWidget *parent)
         "  border: 1px solid #313244;"
         "}");
     auto *detailLayout = new QVBoxLayout(detailPanel);
-    detailLayout->setContentsMargins(20, 16, 20, 16);
-    detailLayout->setSpacing(12);
+    detailLayout->setContentsMargins(0, 0, 0, 0);
+    detailLayout->setSpacing(0);
+
+    // Scroll area for detail content
+    auto *detailScroll = new QScrollArea(detailPanel);
+    detailScroll->setWidgetResizable(true);
+    detailScroll->setFrameShape(QFrame::NoFrame);
+    detailScroll->setStyleSheet("QScrollArea { background: transparent; border: none; }"
+                                "QScrollBar:vertical { width: 6px; background: transparent; }"
+                                "QScrollBar::handle:vertical { background: #45475a; border-radius: 3px; }"
+                                "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }");
+    auto *detailContent = new QWidget();
+    detailContent->setStyleSheet("background: transparent;");
+    auto *detailContentLayout = new QVBoxLayout(detailContent);
+    detailContentLayout->setContentsMargins(20, 16, 20, 16);
+    detailContentLayout->setSpacing(12);
 
     // Title row
-    auto *detailTitle = new QLabel(tr("WORKOUT DETAILS"), detailPanel);
+    auto *detailTitle = new QLabel(tr("WORKOUT DETAILS"), detailContent);
     detailTitle->setObjectName("workoutDetailTitle");
-    detailLayout->addWidget(detailTitle);
+    detailContentLayout->addWidget(detailTitle);
 
     // Stacked widget: page 0 = dials (Free Ride / Intervals), page 1 = map (Map Ride)
-    m_detailStack = new QStackedWidget(detailPanel);
+    m_detailStack = new QStackedWidget(detailContent);
 
     // Page 0: power + HR dials
     m_workoutPowerDial->setFixedSize(250, 190);
@@ -356,10 +371,10 @@ MainWindow::MainWindow(QWidget *parent)
     m_workoutMapWidget = new WorkoutMapWidget();
     m_detailStack->addWidget(m_workoutMapWidget);
 
-    detailLayout->addWidget(m_detailStack, 1);
+    detailContentLayout->addWidget(m_detailStack, 1);
 
     // Metric cards grid (2 columns)
-    auto *metricsGrid = new QWidget(detailPanel);
+    auto *metricsGrid = new QWidget(detailContent);
     auto *metricsGridLayout = new QGridLayout(metricsGrid);
     metricsGridLayout->setContentsMargins(0, 0, 0, 0);
     metricsGridLayout->setSpacing(10);
@@ -380,8 +395,12 @@ MainWindow::MainWindow(QWidget *parent)
         auto *val = new QLabel("-", card);
         val->setStyleSheet("font-size: 20px; font-weight: 700; color: #cdd6f4;"
                            " background: transparent; border: none;");
+        val->setMinimumWidth(0);
+        val->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
         cardLayout->addWidget(lbl);
         cardLayout->addWidget(val);
+        card->setMinimumWidth(0);
+        card->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
         metricsGridLayout->addWidget(card, row, col);
         *valueOut = val;
     };
@@ -405,11 +424,11 @@ MainWindow::MainWindow(QWidget *parent)
     makeStatCard("BEST 5 min",     &m_savedBest5minValue,   7, 0);
     makeStatCard("BEST 20 min",    &m_savedBest20minValue,  7, 1);
 
-    detailLayout->addWidget(metricsGrid);
+    detailContentLayout->addWidget(metricsGrid);
 
     // ── Time-in-Zone stacked bar ──────────────────────────────────────────
     {
-        auto *zoneSection = new QWidget(detailPanel);
+        auto *zoneSection = new QWidget(detailContent);
         zoneSection->setStyleSheet(
             "background-color: #1e1e2e;"
             "border-radius: 8px;"
@@ -434,10 +453,13 @@ MainWindow::MainWindow(QWidget *parent)
         m_zoneLegend->setWordWrap(true);
         zoneLay->addWidget(m_zoneLegend);
 
-        detailLayout->addWidget(zoneSection);
+        detailContentLayout->addWidget(zoneSection);
     }
 
-    detailLayout->addStretch();
+    detailContentLayout->addStretch();
+
+    detailScroll->setWidget(detailContent);
+    detailLayout->addWidget(detailScroll);
 
     workoutsLayout->addWidget(listPanel, 2);
     workoutsLayout->addWidget(detailPanel, 3);

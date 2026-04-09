@@ -4,10 +4,8 @@
 #include <QGridLayout>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
-#include <QtCharts/QChartView>
-#include <QtCharts/QLineSeries>
-#include <QtCharts/QValueAxis>
-#include <QtCharts/QCategoryAxis>
+#include <QPointF>
+#include <QPainterPath>
 #include <QTimer>
 #include <QDateTime>
 #include <QStackedWidget>
@@ -65,6 +63,45 @@ private:
     double m_min = 0;
     double m_max = 100;
     double m_value = 0;
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+// QPainter-based live chart (replaces Qt Charts – LGPL only)
+// ──────────────────────────────────────────────────────────────────────────────
+
+class LiveChartWidget : public QWidget
+{
+    Q_OBJECT
+public:
+    explicit LiveChartWidget(QWidget *parent = nullptr);
+
+    void appendPower(double x, double y);
+    void appendHr(double x, double y);
+    void clearSeries();
+    void removePowerBefore(double x);
+    void removeHrBefore(double x);
+
+    void setXRange(double mn, double mx);
+    void setYLeftRange(double mn, double mx);
+    void setYRightRange(double mn, double mx);
+
+    int     powerCount() const { return m_powerData.size(); }
+    QPointF powerAt(int i) const { return m_powerData.at(i); }
+    int     hrCount() const { return m_hrData.size(); }
+    QPointF hrAt(int i) const { return m_hrData.at(i); }
+
+protected:
+    void paintEvent(QPaintEvent *event) override;
+
+private:
+    QVector<QPointF> m_powerData;
+    QVector<QPointF> m_hrData;
+    double m_xMin = 0, m_xMax = 120;
+    double m_yLeftMin = 0, m_yLeftMax = 300;
+    double m_yRightMin = 40, m_yRightMax = 180;
+
+    QRectF plotArea() const;
+    static double niceStep(double range, int targetTicks);
 };
 
 // Forward declarations – defined in dashboardwidget.cpp
@@ -200,7 +237,6 @@ private:
     void     buildIntervalTab(QWidget *parent);
     void     buildMapTab(QWidget *parent);
     void     addChartPoint(double powerW, double hrBpm);
-    void     updateTimeAxisLabels(double minS, double maxS);
     void     updateAverages();
     void     updateControlDisplay();
     void     updateIntervalDisplay();
@@ -322,13 +358,8 @@ private:
     double            m_rideAscent             = 0.0; // accumulated elevation gain this ride
     double            m_prevEleForAscent       = -1.0; // previous tick's elevation (-1 = uninit)
 
-    // Chart
-    QChartView         *m_chartView  = nullptr;
-    QLineSeries        *m_serPower   = nullptr;
-    QLineSeries        *m_serHr      = nullptr;
-    QCategoryAxis    *m_axisX      = nullptr;
-    QValueAxis         *m_axisYLeft  = nullptr;
-    QValueAxis         *m_axisYRight = nullptr;
+    // Chart (QPainter-based)
+    LiveChartWidget    *m_chartView  = nullptr;
 
     QTimer  m_chartTimer;
     double  m_elapsed      = 0.0;   // seconds since reset
